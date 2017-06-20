@@ -57,6 +57,8 @@ static FILE *fpDeleteFile;
 static char *arDeleteFiles[3] = {"", "delete_", "inventory_delete_"};
 
 static int current_table = -1;
+static char linebuf[1024 * 128];
+static int linebufpos;
 
 int print_jdate (FILE *pFile, ds_key_t kValue);
 
@@ -82,25 +84,67 @@ int
 print_separator (int sep)
 {
 	int res = 0;
-	static char *pDelimiter;
+	static char pDelimiter;
 	static int init = 0;
 	
 	if (!init)
 	{
-        pDelimiter = get_str ("DELIMITER");
+        pDelimiter = get_str ("DELIMITER")[0];
         init = 1;
 	}
 	
 	if (sep)
 	{
-		if (fwrite(pDelimiter, 1, 1, fpOutfile) != 1)
-		{
-			fprintf(stderr, "ERROR: Failed to write delimiter\n");
-			exit(-1);
-		}
+        linebuf[linebufpos++] = pDelimiter;
 	}
 	   
 	return (res);
+}
+
+static char *format_int(int v) {
+    static char tmp[20];
+    char *buf = tmp + 20;
+    *(--buf) = '\0';
+    *(--buf) = '0' + v % 10;
+    v /= 10;
+    while (v) {
+        *(--buf) = '0' + v % 10;
+        v /= 10;
+    }
+    return buf;
+}
+static char *format_long(long long v) {
+    static char tmp[30];
+    char *buf = tmp + 30;
+    *(--buf) = '\0';
+    *(--buf) = '0' + v % 10;
+    v /= 10;
+    while (v) {
+        *(--buf) = '0' + v % 10;
+        v /= 10;
+    }
+    return buf;
+}
+static char *format_decimal(decimal_t * val) {
+    static char tmp[20];
+    char *buf = tmp + 20;
+    *(--buf) = '\0';
+    int v = val->number;
+    int f, s = v < 0;
+    if (s) v = -v;
+    f = v %100;
+    v /= 100;
+    *(--buf) = '0' + f % 10;
+    *(--buf) = '0' + f / 10;
+    *(--buf) = '.';
+    *(--buf) = '0' + v % 10;
+    v /= 10;
+    while (v) {
+        *(--buf) = '0' + v % 10;
+        v /= 10;
+    }
+    if (s) *(--buf) = '-';
+    return buf;
 }
 
 /*
@@ -141,20 +185,18 @@ print_prep (int table, int update)
 void
 print_integer (int nColumn, int val, int sep)
 {
-	if (!nullCheck(nColumn))
-	{
-		if (fprintf (fpOutfile, "%d", val) < 0)
-		{
-			fprintf(stderr, "ERROR: Failed to write output for column %d\n", nColumn);
-			exit(-1);
-		}
-	}
-#ifdef _MYSQL
-		else fwrite("NULL", 1, 4, fpOutfile);
-#endif
-	print_separator (sep);
-	
-	return;
+    if (!nullCheck(nColumn))
+    {
+        char *vs;
+        if (val < 0) {
+            linebuf[linebufpos++] = '-';
+            val = -val;
+        }
+        vs = format_int(val);
+        strcpy(linebuf + linebufpos, vs);
+        linebufpos += strlen(vs);
+    }
+    print_separator (sep);
 }
 
 void
@@ -164,23 +206,9 @@ print_varchar (int nColumn, char *val, int sep)
 
 	if (!nullCheck(nColumn) && (val != NULL))
 	{
-      nLength = strlen(val);
-		
-#ifdef STR_QUOTES
-		if ((fwrite ("\"", 1, 1, fpOutfile) != 1) ||
-			(fwrite (val, 1, nLength, fpOutfile) != nLength) ||
-			(fwrite ("\"", 1, 1, fpOutfile)) != 1)
-#else
-		if (fwrite (val, 1, nLength, fpOutfile) != nLength)
-#endif
-			{
-				fprintf(stderr, "ERROR: Failed to write output for column %d\n", nColumn);
-				exit(-1);
-			}
+        strcpy(linebuf + linebufpos, val);
+        linebufpos += strlen(val);
 	}
-#ifdef _MYSQL
-		else fwrite("NULL", 1, 4, fpOutfile);
-#endif
 	print_separator (sep);
 	
    return;
@@ -229,24 +257,6 @@ print_cp_delete (int nCatalog, int nPage)
    return;
 }
 */
-void
-print_char (int nColumn, char val, int sep)
-{
-	if (!nullCheck(nColumn))
-	{
-		if (fwrite (&val, 1, 1, fpOutfile) != 1)
-		{
-			fprintf(stderr, "ERROR: Failed to write output for column %d\n", nColumn);
-			exit(-1);
-		}
-	}
-#ifdef _MYSQL
-		else fwrite("NULL", 1, 4, fpOutfile);
-#endif
-	print_separator (sep);
-
-   return;
-}
 
 void
 print_date (int nColumn, ds_key_t val, int sep)
@@ -255,24 +265,14 @@ print_date (int nColumn, ds_key_t val, int sep)
 	{
 		if (val > 0)
 		{
-			if (print_jdate(fpOutfile, val))
-			{
-				fprintf(stderr, "ERROR: Failed to write output for column %d\n", nColumn);
-				exit(-1);
-			}
-			
+            date_t dTemp;
+            jtodt (&dTemp, (int) val);
+            memcpy(linebuf + linebufpos, dttostr(&dTemp), 10);
+            linebufpos += 10;
 		}
-#ifdef _MYSQL
-		else fwrite("NULL", 1, 4, fpOutfile);
-#endif
 	}
 	
-#ifdef _MYSQL
-		else fwrite("NULL", 1, 4, fpOutfile);
-#endif
 	print_separator (sep);
-	   
-	return;
 }
 
 void
@@ -286,80 +286,43 @@ print_time (int nColumn, ds_key_t val, int sep)
 	val -= 60 * nMinutes;
 	nSeconds = (int)(val % 60);
 	
-	if (!nullCheck(nColumn))
-	{
-		if (val != -1)
-		{
-			fprintf(fpOutfile, "%02d:%02d:%02d", nHours, nMinutes, nSeconds);
-		}
-#ifdef _MYSQL
-		else fwrite("NULL", 1, 4, fpOutfile);
-#endif
-	}
-#ifdef _MYSQL
-		else fwrite("NULL", 1, 4, fpOutfile);
-#endif
-	
+	if (!nullCheck(nColumn)) {
+        if (val != -1) {
+            linebuf[linebufpos++] = '0' + nHours / 10;
+            linebuf[linebufpos++] = '0' + nHours % 10;
+            linebuf[linebufpos++] = '0' + nMinutes / 10;
+            linebuf[linebufpos++] = '0' + nMinutes % 10;
+            linebuf[linebufpos++] = '0' + nSeconds / 10;
+            linebuf[linebufpos++] = '0' + nSeconds % 10;
+        }
+    }
+
 	print_separator (sep);
-	   
-	return;
 }
 
 void
 print_decimal (int nColumn, decimal_t * val, int sep)
 {
-	int i;
-	double dTemp;
+    if (!nullCheck(nColumn))
+    {
+        char *vs = format_decimal(val);
+        strcpy(linebuf + linebufpos, vs);
+        linebufpos += strlen(vs);
+    }
+    print_separator (sep);
 
-	if (!nullCheck(nColumn))
-	{
-#ifdef WIN32
-#pragma warning(disable: 4244)
-#endif
-	dTemp = val->number;
-#ifdef WIN32
-#pragma warning(default: 4244)
-#endif
-		for (i=0; i < val->precision; i++)
-			dTemp /= 10.0;
-
-		if (fprintf(fpOutfile, "%.*f", val->precision, dTemp) < 0)
-		{
-			fprintf(stderr, "ERROR: Failed to write output for column %d\n", nColumn);
-			exit(-1);
-		}
-	}
-#ifdef _MYSQL
-		else fwrite("NULL", 1, 4, fpOutfile);
-#endif
-	print_separator (sep);
-	
-	return;
+    return;
 }
-
 void
 print_key (int nColumn, ds_key_t val, int sep)
 {
-	if (!nullCheck(nColumn))
-	{
-		if (val != (ds_key_t) -1) /* -1 is a special value, indicating NULL */
-		{
-			if (fprintf (fpOutfile, HUGE_FORMAT, val) < 0)
-			{
-				fprintf(stderr, "ERROR: Failed to write output for column %d\n", nColumn);
-				exit(-1);
-			}
-		}
-#ifdef _MYSQL
-		else fwrite("NULL", 1, 4, fpOutfile);
-#endif
-	}
-#ifdef _MYSQL
-		else fwrite("NULL", 1, 4, fpOutfile);
-#endif
-	print_separator (sep);
-	
-	return;
+    if (!nullCheck(nColumn) && val != (ds_key_t)-1)
+    {
+        char *vs = format_long(val);
+        strcpy(linebuf + linebufpos, vs);
+        linebufpos += strlen(vs);
+    }
+    print_separator (sep);
 }
 
 void
@@ -372,25 +335,10 @@ print_id (int nColumn, ds_key_t val, int sep)
       if (val != (ds_key_t) -1) /* -1 is a special value, indicating NULL */
       {
          mk_bkey(szID, val, 0);
-#ifdef STR_QUOTES
-         if ((fwrite ("\"", 1, 1, fpOutfile) < 1) ||
-            (fwrite (szID, 1, RS_BKEY, fpOutfile) < RS_BKEY) ||
-			(fwrite ("\"", 1, 1, fpOutfile) < 1))
-#else
-            if (fwrite (szID, 1, RS_BKEY, fpOutfile) < RS_BKEY)
-#endif
-            {
-               fprintf(stderr, "ERROR: Failed to write output for column %d\n", nColumn);
-               exit(-1);
-            }
+          memcpy(linebuf + linebufpos, szID, RS_BKEY);
+          linebufpos += RS_BKEY;
       }
-#ifdef _MYSQL
-		else fwrite("NULL", 1, 4, fpOutfile);
-#endif
    }
- #ifdef _MYSQL
-		else fwrite("NULL", 1, 4, fpOutfile);
-#endif
   print_separator (sep);
    
    return;
@@ -401,20 +349,8 @@ print_boolean (int nColumn, int val, int sep)
 {
 	if (!nullCheck(nColumn))
 	{
-
-#ifdef STR_QUOTES
-		if (fwrite ((val?"\"Y\"":"\"N\""), 1, 3, fpOutfile) != 3)
-#else
-		if (fwrite ( ((val)?"Y":"N"), 1, 1, fpOutfile) != 1)
-#endif
-		{
-			fprintf(stderr, "ERROR: Failed to write output for column %d\n", nColumn);
-			exit(-1);
-		}
+        linebuf[linebufpos++] = val ? 'Y' : 'N';
 	}
-#ifdef _MYSQL
-		else fwrite("NULL", 1, 4, fpOutfile);
-#endif
 
 	print_separator (sep);
 
@@ -498,6 +434,7 @@ print_start (int tbl)
 #endif
 
    pTdef->flags |= FL_OPEN;
+   linebufpos = 0;
 
    return (0);
 }
@@ -534,9 +471,12 @@ print_end (int tbl)
         init = 1;
      }
 
-   if (add_term)
-      fwrite(term, 1, add_term, fpOutfile);
-   fprintf (fpOutfile, "\n");
+   if (add_term) {
+       memcpy(linebuf + linebufpos, term, add_term);
+       linebufpos += add_term;
+   }
+    linebuf[linebufpos++] = '\n';
+    fwrite(linebuf, 1, linebufpos, fpOutfile);
 
    return (res);
 }
@@ -631,8 +571,8 @@ print_string (char *szMessage, ds_key_t val)
 *
 * Params:
 * Returns:
-* Called By: 
-* Calls: 
+* Called By:
+* Calls:
 * Assumptions:
 * Side Effects:
 */
@@ -640,18 +580,18 @@ int
 print_jdate (FILE *pFile, ds_key_t kValue)
 {
 
-	date_t dTemp;
+    date_t dTemp;
 
-	jtodt (&dTemp, (int) kValue);
+    jtodt (&dTemp, (int) kValue);
 #if (defined(STR_QUOTES) && !defined(_MYSQL))
-	if ((fwrite ("\"", 1, 1, pFile) != 1) ||
+    if ((fwrite ("\"", 1, 1, pFile) != 1) ||
 		(fwrite(dttostr(&dTemp), 1, 10, pFile) != 10) ||
 		(fwrite ("\"", 1, 1, pFile)) != 1)
 #else
-	if (fwrite(dttostr(&dTemp), 1, 10, pFile) != 10)
+    if (fwrite(dttostr(&dTemp), 1, 10, pFile) != 10)
 #endif
-		return(-1);
-	return(0);
+        return(-1);
+    return(0);
 }
 
 /*
