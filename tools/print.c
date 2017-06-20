@@ -59,6 +59,9 @@ static char *arDeleteFiles[3] = {"", "delete_", "inventory_delete_"};
 static int current_table = -1;
 static char linebuf[1024 * 128];
 static int linebufpos;
+static ds_key_t nullBuf;
+static int nullFirst;
+#define nullCheck(x) ((nullBuf >> (x - nullFirst)) & 1)
 
 int print_jdate (FILE *pFile, ds_key_t kValue);
 
@@ -435,6 +438,8 @@ print_start (int tbl)
 
    pTdef->flags |= FL_OPEN;
    linebufpos = 0;
+   nullBuf = pTdef->kNullBitMap;
+   nullFirst = pTdef->nFirstColumn;
 
    return (0);
 }
