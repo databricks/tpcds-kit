@@ -69,6 +69,8 @@ int		get_int(char *var);
 void	set_int(char *var, char *val);
 void    set_flg(char *var);
 int		is_set(char *flag);
+int     is_set_filter(void);
+int     is_set_child(void);
 void	clr_flg(char *flag);
 int		find_table(char *szParamName, char *tname);
 int		read_file(char *param_name, char *arg);

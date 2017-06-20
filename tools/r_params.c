@@ -109,6 +109,8 @@ load_params()
 	return;
 }
 
+static int cacheChild = 0;
+static int cacheFilter = 0;
 /*
  * Routine:  set_flag(int f)
  * Purpose:  set a toggle parameter
@@ -132,7 +134,8 @@ set_flg(char *flag)
 	nParam = fnd_param(flag);
 	if (nParam >= 0)
 		strcpy(params[options[nParam].index], "Y");
-
+	if (!strcasecmp(flag, "FILTER")) cacheFilter = 1;
+	if (!strcasecmp(flag, "_CHILD_ONLY")) cacheChild = 1;
 	return;
 }
 
@@ -159,6 +162,8 @@ clr_flg(char *flag)
 	nParam = fnd_param(flag);
 	if (nParam >= 0)
 		strcpy(params[options[nParam].index], "N");
+	if (!strcasecmp(flag, "FILTER")) cacheFilter = 0;
+	if (!strcasecmp(flag, "_CHILD_ONLY")) cacheChild = 0;
 	return;
 }
 
@@ -195,7 +200,8 @@ is_set(char *flag)
    
    return(bIsSet );	/* better a false negative than a false positive ? */
 }
-
+int is_set_filter(void) { return cacheFilter; }
+int is_set_child(void) { return cacheChild; }
 /*
  * Routine: set_int(int var, char *value)
  * Purpose: set an integer parameter
