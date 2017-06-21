@@ -66,5 +66,19 @@ int dectof(double *dest, decimal_t *);
 int	decimal_t_op(decimal_t *dest, int o, decimal_t *d1, decimal_t *d2);
 void	print_decimal(int nColumn, decimal_t *d, int s);
 void	set_precision(decimal_t *d, int sie, int precision);
+
+static inline void decimal_t_op_plus(decimal_t *dest, decimal_t *d1, decimal_t *d2) {
+	dest->number = d1->number + d2->number;
+}
+static inline void decimal_t_op_minus(decimal_t *dest, decimal_t *d1, decimal_t *d2) {
+	dest->number = d1->number - d2->number;
+}
+static inline void decimal_t_op_mult0(decimal_t *dest, decimal_t *d1, decimal_t *d2) {
+	dest->number = d1->number * d2->number;
+}
+static inline void decimal_t_op_mult2(decimal_t *dest, decimal_t *d1, decimal_t *d2) {
+	dest->number = d1->number * d2->number / 100;
+}
+
 #define NegateDecimal(d) (d)->number *= -1
 #endif /* R_DECIMAL_H */

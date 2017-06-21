@@ -149,7 +149,7 @@ mk_w_item (void* row, ds_key_t index)
 	changeSCD(SCD_INT, &r->i_current_price, &rOldValues->i_current_price,  &nFieldChangeFlags,  bFirstRecord);
 
 	genrand_decimal(&dMarkdown, DIST_UNIFORM, &dMinMarkdown, &dMaxMarkdown, NULL, I_WHOLESALE_COST);
-	decimal_t_op(&r->i_wholesale_cost, OP_MULT, &r->i_current_price, &dMarkdown);
+	decimal_t_op_mult2(&r->i_wholesale_cost, &r->i_current_price, &dMarkdown);
 	changeSCD(SCD_DEC, &r->i_wholesale_cost, &rOldValues->i_wholesale_cost,  &nFieldChangeFlags,  bFirstRecord);
 
 	hierarchy_item (I_CATEGORY, &r->i_category_id, &r->i_category, index);

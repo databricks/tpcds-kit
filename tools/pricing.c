@@ -64,6 +64,13 @@ static ds_limits_t	aPriceLimits[MAX_LIMIT] =
 	{S_WRET_PRICING, WS_QUANTITY_MAX, WS_MARKUP_MAX, WS_DISCOUNT_MAX, WS_WHOLESALE_MAX, WS_COUPON_MAX}
 
 };
+typedef struct {
+        int nQuantity;
+        decimal_t dMarkUp;
+        decimal_t dDiscount;
+        decimal_t dWholesale;
+} ds_limits_dec_t;
+static ds_limits_dec_t aPriceLimitsDec[MAX_LIMIT];
 
 /*
 * Routine: set_pricing(int nTabId, ds_pricing_t *pPricing)
@@ -83,18 +90,16 @@ static ds_limits_t	aPriceLimits[MAX_LIMIT] =
 */
 void set_pricing(int nTabId, ds_pricing_t *pPricing)
 {
-	static int nLastId = -1, 
-		init = 0,
-		nQuantityMax,
+	static int init = 0,
 		nQuantityMin = 1;
-	static decimal_t dQuantity, dMarkupMin, dDiscountMin, dWholesaleMin,
-		 dMarkupMax, dDiscountMax, dWholesaleMax, dCouponMin, dCouponMax,
+	static decimal_t dQuantity, dMarkupMin, dDiscountMin, dWholesaleMin, dCouponMin,
 		 dZero, dOneHalf, d9pct, dOne, dTemp, dHundred;
 	decimal_t dMarkup, dCoupon, dShipping, dDiscount, dTemp2;
 	int i,
 		nCashPct,
 		nCreditPct,
 		nCouponUsage;
+        ds_limits_dec_t *limits;
 	
 	if (!init)
 	{
@@ -108,27 +113,25 @@ void set_pricing(int nTabId, ds_pricing_t *pPricing)
 		strtodec(&dWholesaleMin, "1.00");
 		strtodec(&dHundred, "100.00");
 		strtodec(&dOne, "1.00");
+		for (i=0; i < MAX_LIMIT; i++)
+                {
+                    strtodec(&aPriceLimitsDec[i].dDiscount, aPriceLimits[i].szDiscount);
+                    strtodec(&aPriceLimitsDec[i].dWholesale, aPriceLimits[i].szWholesale);
+                    strtodec(&aPriceLimitsDec[i].dMarkUp, aPriceLimits[i].szMarkUp);
+                    aPriceLimitsDec[i].nQuantity = atoi(aPriceLimits[i].szQuantity);
+                }
 
 		init = 1;
 	}
-	
-	if (nTabId != nLastId)
-	{
-		nLastId = -1;
-		for (i=0; i < MAX_LIMIT; i++)
-		{
-			if (nTabId == aPriceLimits[i].nId)
-				nLastId = i;
-		}
-		if (nLastId == -1)
-			INTERNAL("No pricing limits defined");
-		nQuantityMax = atoi(aPriceLimits[nLastId].szQuantity);
-		strtodec(&dDiscountMax, aPriceLimits[nLastId].szDiscount);
-		strtodec(&dMarkupMax, aPriceLimits[nLastId].szMarkUp);
-		strtodec(&dWholesaleMax, aPriceLimits[nLastId].szWholesale);
-		strtodec(&dCouponMax, aPriceLimits[nLastId].szCoupon);
-	}
-
+	switch(nTabId) {
+	case CS_PRICING:
+	case CR_PRICING: limits = &aPriceLimitsDec[0]; break;
+	case SS_PRICING:
+	case SR_PRICING: limits = &aPriceLimitsDec[1]; break;
+	case WS_PRICING:
+	case WR_PRICING:
+        default: limits = &aPriceLimitsDec[2]; break;
+        }
 	switch(nTabId)
 	{
 	case SS_PRICING:
@@ -137,66 +140,66 @@ void set_pricing(int nTabId, ds_pricing_t *pPricing)
 	case S_PLINE_PRICING:
 	case S_CLIN_PRICING:
 	case S_WLIN_PRICING:
-		genrand_integer(&pPricing->quantity, DIST_UNIFORM, nQuantityMin, nQuantityMax, 0, nTabId);
+		genrand_integer(&pPricing->quantity, DIST_UNIFORM, nQuantityMin, limits->nQuantity, 0, nTabId);
 		itodec(&dQuantity, pPricing->quantity);
-		genrand_decimal(&pPricing->wholesale_cost, DIST_UNIFORM, &dWholesaleMin, &dWholesaleMax, NULL, nTabId);
+		genrand_decimal(&pPricing->wholesale_cost, DIST_UNIFORM, &dWholesaleMin, &limits->dWholesale, NULL, nTabId);
 
 		/* ext_wholesale_cost = wholesale_cost * quantity */
-		decimal_t_op(&pPricing->ext_wholesale_cost, OP_MULT, &dQuantity, &pPricing->wholesale_cost);
+		decimal_t_op_mult0(&pPricing->ext_wholesale_cost, &dQuantity, &pPricing->wholesale_cost);
 		
 		/* list_price = wholesale_cost * (1 + markup) */
-		genrand_decimal(&dMarkup, DIST_UNIFORM, &dMarkupMin, &dMarkupMax, NULL, nTabId);
-		decimal_t_op(&dMarkup, OP_PLUS, &dMarkup, &dOne);
-		decimal_t_op(&pPricing->list_price, OP_MULT, &pPricing->wholesale_cost, &dMarkup);
+		genrand_decimal(&dMarkup, DIST_UNIFORM, &dMarkupMin, &limits->dMarkUp, NULL, nTabId);
+		decimal_t_op_plus(&dMarkup, &dMarkup, &dOne);
+		decimal_t_op_mult2(&pPricing->list_price, &pPricing->wholesale_cost, &dMarkup);
 		
 		/* sales_price = list_price * (1 - discount)*/
-		genrand_decimal(&dDiscount, DIST_UNIFORM, &dDiscountMin, &dDiscountMax, NULL, nTabId);
+		genrand_decimal(&dDiscount, DIST_UNIFORM, &dDiscountMin, &limits->dDiscount, NULL, nTabId);
 		NegateDecimal(&dDiscount);
-		decimal_t_op(&pPricing->ext_discount_amt, OP_PLUS, &dDiscount, &dOne);
-		decimal_t_op(&pPricing->sales_price, OP_MULT, &pPricing->list_price, &pPricing->ext_discount_amt);
+		decimal_t_op_plus(&pPricing->ext_discount_amt, &dDiscount, &dOne);
+		decimal_t_op_mult2(&pPricing->sales_price, &pPricing->list_price, &pPricing->ext_discount_amt);
 		
 		/* ext_list_price = list_price * quantity */
-		decimal_t_op(&pPricing->ext_list_price, OP_MULT, &pPricing->list_price, &dQuantity);
+		decimal_t_op_mult0(&pPricing->ext_list_price, &pPricing->list_price, &dQuantity);
 		
 		/* ext_sales_price = sales_price * quantity */
-		decimal_t_op(&pPricing->ext_sales_price, OP_MULT, &pPricing->sales_price, &dQuantity);
+		decimal_t_op_mult0(&pPricing->ext_sales_price, &pPricing->sales_price, &dQuantity);
 		
 		/* ext_discount_amt = ext_list_price - ext_sales_price */
-		decimal_t_op(&pPricing->ext_discount_amt, OP_MINUS, &pPricing->ext_list_price, &pPricing->ext_sales_price);
+		decimal_t_op_minus(&pPricing->ext_discount_amt, &pPricing->ext_list_price, &pPricing->ext_sales_price);
 		
 		/* coupon_amt = ext_sales_price * coupon */
 		genrand_decimal(&dCoupon, DIST_UNIFORM, &dZero, &dOne, NULL, nTabId);
 		genrand_integer(&nCouponUsage, DIST_UNIFORM, 1, 100, 0, nTabId);
 		if (nCouponUsage <= 20)	/* 20% of sales employ a coupon */
-			decimal_t_op(&pPricing->coupon_amt, OP_MULT, &pPricing->ext_sales_price, &dCoupon);
+			decimal_t_op_mult2(&pPricing->coupon_amt, &pPricing->ext_sales_price, &dCoupon);
 		else
 			memcpy(&pPricing->coupon_amt, &dZero, sizeof(decimal_t));
 		
 		/* net_paid = ext_sales_price - coupon_amt */
-		decimal_t_op(&pPricing->net_paid, OP_MINUS, &pPricing->ext_sales_price, &pPricing->coupon_amt);
+		decimal_t_op_minus(&pPricing->net_paid, &pPricing->ext_sales_price, &pPricing->coupon_amt);
 		
 		/* shipping_cost = list_price * shipping */
 		genrand_decimal(&dShipping, DIST_UNIFORM, &dZero, &dOneHalf, NULL, nTabId);
-		decimal_t_op(&pPricing->ship_cost, OP_MULT, &pPricing->list_price, &dShipping);
+		decimal_t_op_mult2(&pPricing->ship_cost, &pPricing->list_price, &dShipping);
 
       /* ext_shipping_cost = shipping_cost * quantity */
-		decimal_t_op(&pPricing->ext_ship_cost, OP_MULT, &pPricing->ship_cost, &dQuantity);
+		decimal_t_op_mult0(&pPricing->ext_ship_cost, &pPricing->ship_cost, &dQuantity);
 		
 		/* net_paid_inc_ship = net_paid + ext_shipping_cost */
-		decimal_t_op(&pPricing->net_paid_inc_ship, OP_PLUS, &pPricing->net_paid, &pPricing->ext_ship_cost);
+		decimal_t_op_plus(&pPricing->net_paid_inc_ship, &pPricing->net_paid, &pPricing->ext_ship_cost);
 		
 		/* ext_tax = tax * net_paid */
 		genrand_decimal(&pPricing->tax_pct, DIST_UNIFORM, &dZero, &d9pct, NULL, nTabId);
-		decimal_t_op(&pPricing->ext_tax, OP_MULT, &pPricing->net_paid, &pPricing->tax_pct);
+		decimal_t_op_mult2(&pPricing->ext_tax, &pPricing->net_paid, &pPricing->tax_pct);
 		
 		/* net_paid_inc_tax = net_paid + ext_tax */
-		decimal_t_op(&pPricing->net_paid_inc_tax, OP_PLUS, &pPricing->net_paid, &pPricing->ext_tax);
+		decimal_t_op_plus(&pPricing->net_paid_inc_tax, &pPricing->net_paid, &pPricing->ext_tax);
 		
 		/* net_paid_inc_ship_tax = net_paid_inc_tax + ext_shipping_cost */
-		decimal_t_op(&pPricing->net_paid_inc_ship_tax, OP_PLUS, &pPricing->net_paid_inc_ship, &pPricing->ext_tax);
+		decimal_t_op_plus(&pPricing->net_paid_inc_ship_tax, &pPricing->net_paid_inc_ship, &pPricing->ext_tax);
 		
 		/* net_profit = net_paid - ext_wholesale_cost */
-		decimal_t_op(&pPricing->net_profit, OP_MINUS, &pPricing->net_paid, &pPricing->ext_wholesale_cost);
+		decimal_t_op_minus(&pPricing->net_profit, &pPricing->net_paid, &pPricing->ext_wholesale_cost);
 		break;
 	case CR_PRICING:
 	case SR_PRICING:
@@ -204,65 +207,65 @@ void set_pricing(int nTabId, ds_pricing_t *pPricing)
 		/* quantity is determined before we are called */
 		/* ext_wholesale_cost = wholesale_cost * quantity */
 		itodec(&dQuantity, pPricing->quantity);
-		decimal_t_op(&pPricing->ext_wholesale_cost, OP_MULT, &dQuantity, &pPricing->wholesale_cost);
+		decimal_t_op_mult0(&pPricing->ext_wholesale_cost, &dQuantity, &pPricing->wholesale_cost);
 		
 		/* ext_list_price = list_price * quantity */
-		decimal_t_op(&pPricing->ext_list_price, OP_MULT, &pPricing->list_price, &dQuantity);
+		decimal_t_op_mult0(&pPricing->ext_list_price, &pPricing->list_price, &dQuantity);
 		
 		/* ext_sales_price = sales_price * quantity */
-		decimal_t_op(&pPricing->ext_sales_price, OP_MULT, &pPricing->sales_price, &dQuantity);
+		decimal_t_op_mult0(&pPricing->ext_sales_price, &pPricing->sales_price, &dQuantity);
 		
 		/* net_paid = ext_list_price (couppons don't effect returns) */
 		memcpy(&pPricing->net_paid, &pPricing->ext_sales_price, sizeof(decimal_t));
 		
 		/* shipping_cost = list_price * shipping */
 		genrand_decimal(&dShipping, DIST_UNIFORM, &dZero, &dOneHalf, NULL, nTabId);
-		decimal_t_op(&pPricing->ship_cost, OP_MULT, &pPricing->list_price, &dShipping);
+		decimal_t_op_mult2(&pPricing->ship_cost, &pPricing->list_price, &dShipping);
 
       /* ext_shipping_cost = shipping_cost * quantity */
-		decimal_t_op(&pPricing->ext_ship_cost, OP_MULT, &pPricing->ship_cost, &dQuantity);
+		decimal_t_op_mult0(&pPricing->ext_ship_cost, &pPricing->ship_cost, &dQuantity);
 				
 		/* net_paid_inc_ship = net_paid + ext_shipping_cost */
-		decimal_t_op(&pPricing->net_paid_inc_ship, OP_PLUS, &pPricing->net_paid, &pPricing->ext_ship_cost);
+		decimal_t_op_plus(&pPricing->net_paid_inc_ship, &pPricing->net_paid, &pPricing->ext_ship_cost);
 		
 		/* ext_tax = tax * net_paid */
-		decimal_t_op(&pPricing->ext_tax, OP_MULT, &pPricing->net_paid, &pPricing->tax_pct);
+		decimal_t_op_mult2(&pPricing->ext_tax, &pPricing->net_paid, &pPricing->tax_pct);
 		
 		/* net_paid_inc_tax = net_paid + ext_tax */
-		decimal_t_op(&pPricing->net_paid_inc_tax, OP_PLUS, &pPricing->net_paid, &pPricing->ext_tax);
+		decimal_t_op_plus(&pPricing->net_paid_inc_tax, &pPricing->net_paid, &pPricing->ext_tax);
 		
 		/* net_paid_inc_ship_tax = net_paid_inc_tax + ext_shipping_cost */
-		decimal_t_op(&pPricing->net_paid_inc_ship_tax, OP_PLUS, &pPricing->net_paid_inc_ship, &pPricing->ext_tax);
+		decimal_t_op_plus(&pPricing->net_paid_inc_ship_tax, &pPricing->net_paid_inc_ship, &pPricing->ext_tax);
 		
 		/* net_profit = net_paid - ext_wholesale_cost */
-		decimal_t_op(&pPricing->net_profit, OP_MINUS, &pPricing->net_paid, &pPricing->ext_wholesale_cost);
+		decimal_t_op_minus(&pPricing->net_profit, &pPricing->net_paid, &pPricing->ext_wholesale_cost);
 		
 		/* see to it that the returned amounts add up to the total returned */
 		/* allocate some of return to cash */
 		genrand_integer(&nCashPct, DIST_UNIFORM, 0, 100, 0, nTabId);
 		itodec(&dTemp, nCashPct);
-		decimal_t_op(&pPricing->refunded_cash, OP_DIV, &dTemp, &dHundred);
-		decimal_t_op(&pPricing->refunded_cash, OP_MULT, &pPricing->refunded_cash, &pPricing->net_paid);
+                dTemp.precision = 2;
+		decimal_t_op_mult2(&pPricing->refunded_cash, &dTemp, &pPricing->net_paid);
 		
 		/* allocate some to reversed charges */
 		genrand_integer(&nCreditPct, DIST_UNIFORM, 1, 100, 0, nTabId);
-		itodec(&dTemp2, nCreditPct);
-		decimal_t_op(&dTemp, OP_DIV, &dTemp2, &dHundred);
-		decimal_t_op(&dTemp2, OP_MINUS, &pPricing->net_paid, &pPricing->refunded_cash);
-		decimal_t_op(&pPricing->reversed_charge, OP_MULT, &dTemp2, &dTemp);
+		itodec(&dTemp, nCreditPct);
+                dTemp2.precision = 2;
+		decimal_t_op_minus(&dTemp2, &pPricing->net_paid, &pPricing->refunded_cash);
+		decimal_t_op_mult2(&pPricing->reversed_charge, &dTemp2, &dTemp);
 		
 		/* the rest is store credit */
-		decimal_t_op(&pPricing->store_credit, OP_MINUS, &pPricing->net_paid, &pPricing->reversed_charge);
-		decimal_t_op(&pPricing->store_credit, OP_MINUS, &pPricing->store_credit, &pPricing->refunded_cash);
+		decimal_t_op_minus(&pPricing->store_credit, &pPricing->net_paid, &pPricing->reversed_charge);
+		decimal_t_op_minus(&pPricing->store_credit, &pPricing->store_credit, &pPricing->refunded_cash);
 		
 		/* pick a fee for the return */
 		genrand_decimal(&pPricing->fee, DIST_UNIFORM, &dOneHalf, &dHundred, &dZero, nTabId);
 		
 		/* and calculate the net effect */
-		decimal_t_op(&pPricing->net_loss, OP_MINUS, &pPricing->net_paid_inc_ship_tax, &pPricing->store_credit);
-		decimal_t_op(&pPricing->net_loss, OP_MINUS, &pPricing->net_loss, &pPricing->refunded_cash);
-		decimal_t_op(&pPricing->net_loss, OP_MINUS, &pPricing->net_loss, &pPricing->reversed_charge);
-		decimal_t_op(&pPricing->net_loss, OP_PLUS, &pPricing->net_loss, &pPricing->fee);
+		decimal_t_op_minus(&pPricing->net_loss, &pPricing->net_paid_inc_ship_tax, &pPricing->store_credit);
+		decimal_t_op_minus(&pPricing->net_loss, &pPricing->net_loss, &pPricing->refunded_cash);
+		decimal_t_op_minus(&pPricing->net_loss, &pPricing->net_loss, &pPricing->reversed_charge);
+		decimal_t_op_plus(&pPricing->net_loss, &pPricing->net_loss, &pPricing->fee);
 		break;
 	}
 
