@@ -169,7 +169,7 @@ skip_random (int nStream, ds_key_t N)
  * Side Effects:
  */
 int
-genrand_integer (int *dest, int dist, int min, int max, int mean, int stream)
+genrand_integer_org (int *dest, int dist, int min, int max, int mean, int stream)
 {
    int res = 0,
      i;
@@ -263,7 +263,7 @@ genrand_key (ds_key_t * dest, int dist, ds_key_t min, ds_key_t max,
  * TODO: None
  */
 int
-genrand_decimal (decimal_t * dest, int dist, decimal_t * min, decimal_t * max,
+genrand_decimal_org (decimal_t * dest, int dist, decimal_t * min, decimal_t * max,
                  decimal_t * mean, int stream)
 {
    int i;

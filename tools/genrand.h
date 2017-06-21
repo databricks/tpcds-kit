@@ -63,8 +63,6 @@ extern rng_t Streams[];
 
 #define RNG_SEED	19620718
 
-int		genrand_integer(int *dest, int dist, int min, int max, int mean, int stream);
-int		genrand_decimal(decimal_t *dest, int dist, decimal_t *min, decimal_t *max, decimal_t *mean, int stream);
 int		genrand_date(date_t *dest, int dist, date_t *min, date_t *max, date_t *mean, int stream);
 ds_key_t	genrand_key(ds_key_t *dest, int dist, ds_key_t min, ds_key_t max, ds_key_t mean, int stream);
 int		gen_charset(char *dest, char *set, int min, int max, int stream);
@@ -78,5 +76,27 @@ void	genrand_ipaddr(char *pDest, int nColumn);
 int	genrand_url(char *pDest, int nColumn);
 int	setSeed(int nStream, int nValue);
 void resetSeeds(int nTable);
+static inline int
+genrand_integer (int *dest, int dist, int min, int max, int mean, int stream)
+{
+   int res = next_random (stream);
+        res %= max - min + 1;
+        res += min;
+
+   if (dest == NULL)
+      return (res);
+
+   *dest = res;
+
+   return (0);
+}
+static inline int
+genrand_decimal (decimal_t * dest, int dist, decimal_t * min, decimal_t * max,
+                 decimal_t * mean, int stream)
+{
+   dest->precision = max->precision;
+   dest->number = next_random (stream) % (int)(max->number - min->number + 1) + min->number;
+   return 0;
+}
 
 #endif
