@@ -213,18 +213,24 @@ getTableNameByID(int i)
 * Side Effects:
 * TODO: None
 */
+int tableFromColumnCache[MAX_COLUMN + 1];
 int
 getTableFromColumn(int nColumn)
 {
-	int i;
-   tdef *pT;
-	
-	for (i=0; i <= MAX_TABLE; i++)
-	{
-      pT = getSimpleTdefsByNumber(i);
-      if ((nColumn >= pT->nFirstColumn) && (nColumn <= pT->nLastColumn))
-				return(i);
-	}
-	return(-1);
+    static int init = 0;
+    if (!init) {
+        int i, j;
+        tdef *pT;
+        init = 1;
+        for (i = 0; i <= MAX_COLUMN; i++) {
+            tableFromColumnCache[i] = -1;
+        }
+        for (i = 0; i < PSEUDO_TABLE_START; i++) {
+            pT = getSimpleTdefsByNumber(i);
+            for (j = pT->nFirstColumn; j <= pT->nLastColumn; j++) {
+                tableFromColumnCache[j] = i;
+            }
+        }
+    }
+    return tableFromColumnCache[nColumn];
 }
-
