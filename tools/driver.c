@@ -554,9 +554,9 @@ main (int ac, char **av)
          */
          if (kFirstRow != 1)
          {
-            row_skip(i, (int)(kFirstRow - 1));
+            row_skip(i, kFirstRow - 1);
             if (pT->flags & FL_PARENT)
-               row_skip(pT->nParam, (int)(kFirstRow - 1));
+               row_skip(pT->nParam, kFirstRow - 1);
          }
          
          /*
