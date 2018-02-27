@@ -29,7 +29,7 @@ sudo yum install gcc make flex bison byacc git
 Then run the following commands to clone the repo and build the tools:
 
 ```
-git clone https://github.com/gregrahn/tpcds-kit.git
+git clone https://github.com/databricks/tpcds-kit.git
 cd tpcds-kit/tools
 make OS=LINUX
 ```
@@ -45,7 +45,7 @@ xcode-select --install
 Then run the following commands to clone the repo and build the tools:
 
 ```
-git clone https://github.com/gregrahn/tpcds-kit.git
+git clone https://github.com/databricks/tpcds-kit.git
 cd tpcds-kit/tools
 make OS=MACOS
 ```
