@@ -40,11 +40,11 @@
  *** RELEASE INFORMATION
  ***/
 #define VERSION       2
-#define RELEASE       4 
+#define RELEASE       13 
 #define MODIFICATION  0
 #define PATCH         ""
 #define COPYRIGHT     "Transaction Processing Performance Council (TPC)"
-#define C_DATES       "2001 - 2017"
+#define C_DATES       "2001 - 2020"
 
 int printReleaseInfo(char *param, char *val);
 

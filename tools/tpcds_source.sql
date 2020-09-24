@@ -41,7 +41,7 @@
 -- ============================================================
 
 -- ============================================================
---   Table: s_catalog_page                                     
+--   Table: s_catalog_page
 -- ============================================================
 create table s_catalog_page
 (
@@ -52,11 +52,11 @@ create table s_catalog_page
     cpag_start_date             char(10)                      ,
     cpag_end_date               char(10)                      ,
     cpag_description            varchar(100)                  ,
-    cpag_type                   varchar(100)                  
+    cpag_type                   varchar(100)
 );
 
 -- ============================================================
---   Table: s_zip_to_gmt                                       
+--   Table: s_zip_to_gmt
 -- ============================================================
 create table s_zip_to_gmt
 (
@@ -80,7 +80,7 @@ create table s_purchase_lineitem
 );
 
 -- ============================================================
---   Table: s_customer                                         
+--   Table: s_customer
 -- ============================================================
 create table s_customer
 (
@@ -120,11 +120,11 @@ create table s_customer
     cust_depend_emp_cnt         smallint                      ,
     cust_depend_college_cnt     smallint                      ,
     cust_vehicle_cnt            smallint                      ,
-    cust_annual_income          numeric(9,2)                  
+    cust_annual_income          numeric(9,2)
 );
 
 -- ============================================================
---   Table: s_customer_address                                 
+--   Table: s_customer_address
 -- ============================================================
 create table s_customer_address
 (
@@ -138,7 +138,7 @@ create table s_customer_address
     cadr_county                 char(30)                      ,
     cadr_state                  char(2)                       ,
     cadr_zip                    char(10)                      ,
-    cadr_country                char(20)                      
+    cadr_country                char(20)
 );
 
 -- ============================================================
@@ -187,7 +187,7 @@ create table s_web_order
 );
 
 -- ============================================================
---   Table: s_item                                             
+--   Table: s_item
 -- ============================================================
 create table s_item
 (
@@ -200,7 +200,7 @@ create table s_item
     item_color                  char(20)                      ,
     item_units                  char(10)                      ,
     item_container              char(10)                      ,
-    item_manager_id             integer                       
+    item_manager_id             integer
 );
 
 -- ============================================================
@@ -241,7 +241,7 @@ create table s_web_order_lineitem
 );
 
 -- ============================================================
---   Table: s_store                                            
+--   Table: s_store
 -- ============================================================
 create table s_store
 (
@@ -255,11 +255,11 @@ create table s_store
     stor_market_id              integer                       ,
     stor_geography_class        char(100)                     ,
     stor_market_manager         char(40)                      ,
-    stor_tax_percentage         numeric(5,2)                  
+    stor_tax_percentage         numeric(5,2)
 );
 
 -- ============================================================
---   Table: s_call_center                                      
+--   Table: s_call_center
 -- ============================================================
 create table s_call_center
 (
@@ -272,11 +272,11 @@ create table s_call_center
     call_center_sq_ft           integer                       ,
     call_center_hours           char(20)                      ,
     call_center_manager         char(40)                      ,
-    call_center_tax_percentage  numeric(7,2)                  
+    call_center_tax_percentage  numeric(7,2)
 );
 
 -- ============================================================
---   Table: s_web_site                                         
+--   Table: s_web_site
 -- ============================================================
 create table s_web_site
 (
@@ -286,21 +286,21 @@ create table s_web_site
     wsit_site_name              char(50)                      ,
     wsit_site_class             char(50)                      ,
     wsit_site_manager           char(40)                      ,
-    wsit_tax_percentage         decimal(5,2)                  
+    wsit_tax_percentage         decimal(5,2)
 );
 
 -- ============================================================
---   Table: s_warehouse                                        
+--   Table: s_warehouse
 -- ============================================================
 create table s_warehouse
 (
     wrhs_warehouse_id           char(16)              not null,
     wrhs_warehouse_desc         char(200)                     ,
-    wrhs_warehouse_sq_ft        integer                       
+    wrhs_warehouse_sq_ft        integer
 );
 
 -- ============================================================
---   Table: s_web_page                                         
+--   Table: s_web_page
 -- ============================================================
 create table s_web_page
 (
@@ -313,11 +313,11 @@ create table s_web_page
     wpag_char_cnt               integer                       ,
     wpag_link_cnt               integer                       ,
     wpag_image_cnt              integer                       ,
-    wpag_max_ad_cnt             integer                       
+    wpag_max_ad_cnt             integer
 );
 
 -- ============================================================
---   Table: s_promotion                                        
+--   Table: s_promotion
 -- ============================================================
 create table s_promotion
 (
@@ -338,7 +338,7 @@ create table s_promotion
     prom_channel_details        char(100)                     ,
     prom_purpose                char(15)                      ,
     prom_discount_active        char(1)                       ,
-    prom_discount_pct           numeric(5,2)                  
+    prom_discount_pct           numeric(5,2)
 );
 
 -- ============================================================
@@ -393,7 +393,7 @@ create table s_catalog_returns
 );
 
 -- ============================================================
---   Table: s_web_returns                                      
+--   Table: s_web_returns
 -- ============================================================
 create table s_web_returns
 (
@@ -413,7 +413,7 @@ create table s_web_returns
     wret_refunded_cash          numeric(7,2)                  ,
     wret_reversed_charge        numeric(7,2)                  ,
     wret_account_credit         numeric(7,2)                  ,
-    wret_reason_id              char(16)                      
+    wret_reason_id              char(16)
 );
 
 -- ============================================================
