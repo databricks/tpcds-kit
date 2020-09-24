@@ -39,3 +39,5 @@ tags
 
 # Flat files
 *.dat
+
+/.idea/*
